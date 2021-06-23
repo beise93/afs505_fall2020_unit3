@@ -1,0 +1,193 @@
+---
+title: "Unit 1 Project"
+author: "Brian Eisenbarth"
+date: "9/27/2020"
+output:
+  word_document:
+    reference_docx: WordStyle-AFS505.docx
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T,  warning=F, results="hold")
+```
+
+
+
+# Question 1
+
+## (i) Reading in the data
+
+```{r reading in forestfire data}
+forestfire.dat <- read.csv("forestfires.csv", head = T)
+
+str(forestfire.dat)
+
+head(forestfire.dat)
+
+dim(forestfire.dat)
+
+```
+Looking at the data for the forestfires file we have 13 columns for the 13 variables with 517 observations. Much of the data is numeric and integer and some categorical variables that should be stored as a factor are not: months, days and perhaps the x and y coordinates.
+
+## (ii) Data Types
+
+```{r changing data types}
+
+  
+forestfire.dat$month <- as.factor(forestfire.dat$month)
+
+forestfire.dat$day <- as.factor(forestfire.dat$day)
+
+
+forestfire.dat$month <- factor(forestfire.dat$month,levels=c("jan","feb","mar","apr","may","jun","jul","aug","sep", "oct","nov","dec"), ordered = TRUE)
+
+
+
+str(forestfire.dat$month)
+
+str(forestfire.dat)
+```
+I changed the data type for both day and month into factors ordered as appropriate. 
+
+## (iii) Range of values
+
+```{r range of values}
+
+
+summary(forestfire.dat)
+range(forestfire.dat$month)
+
+unique(unlist(lapply(forestfire.dat, function (x) which (is.na(x)))))
+
+```
+
+From the summary function there appears to be no missing values. The distribution of values for the month and area variables however are very wide spread. There are to close to 400 values for August and September combined while other months have less than 60. The area column has a min of 0.00 and a max of 1090.84, which is quite extreme.
+
+# Question 2
+
+
+## (i) weekend
+
+```{r question 2}
+
+weekend <- forestfire.dat$day == "sat" | forestfire.dat$day == "sun"
+
+forestfire.dat$day <- weekend
+
+names(forestfire.dat)[4]<- "weekend"
+
+summary(forestfire.dat$weekend)
+summary(forestfire.dat$month)
+
+
+```
+From the summary on the two columns we can see that most of the observations are in late summer to early fall months, while most of the corresponding days are not on the weekend but on a week day.
+
+## (ii) fire
+
+```{r question 2ii}
+
+forestfire.dat$fire.event <- forestfire.dat$area > 0
+
+names(forestfire.dat)[13] <- "fire.area"
+
+
+```
+
+
+## (iii) re-sort
+
+```{r question 2 iii}
+
+forestfire.ord <- forestfire.dat[order(forestfire.dat$month, forestfire.dat$weekend, -forestfire.dat$fire.area),]
+head(forestfire.ord)
+
+```
+
+
+
+# Question 3
+
+## (i) writing the R function
+
+```{r function for dewpoint}
+dewpoint <- function( RH, t){
+  A = 17.625
+  B = 243.04
+  DP <- (B*(log(RH/100) + (A*t)/(B + t))) / (A - log(RH/100) - (A*t)/(B + t))
+  return(DP)
+}
+```
+
+## (ii) computing the dewpoint variable
+
+### (a) vector formulation 
+
+```{r fun stuff}
+forestfire.dat2 <- forestfire.dat
+forestfire.dat2$DP <- dewpoint(forestfire.dat$RH, forestfire.dat$temp)
+
+
+summary(forestfire.dat2$DP)
+```
+There is quite the spread of values for the dew point, going from -15.894 to 19.640, which in terms of farenheit is around 5 degrees to roughly 66 degrees the mean and median are close in value meaning that we have fairly symmetrical data.
+
+### (b) for loop variant
+
+```{r for loop dew point}
+forestfire.dat3 <- forestfire.dat
+RH <- forestfire.dat3$RH
+t <- forestfire.dat3$temp
+DP2 <- function (x) {
+n <- dim(x)[1]
+DP <- rep(NA, n)
+A = 17.625
+B = 243.04
+for (i in 1:n){
+DP[i] <- (B*(log(RH[i]/100) + (A*t[i])/(B + t[i]))) / (A - log(RH[i]/100) - (A*t[i])/(B + t[i]))
+}
+return(DP)
+}
+forestfire.dat3$dp <- DP2(forestfire.dat3)
+summary(forestfire.dat3$dp)
+```
+We get the same results as when we did the vector operatin for calculating the dew point variable.
+
+### (c) using apply()
+
+```{r apply user fun}
+forestfire.dat4 <- forestfire.dat
+
+
+
+forestfire.dat4$dp <- apply(forestfire.dat4[,c("RH", "temp")], 1, function(x) dewpoint(x[1], x[2]))
+summary(forestfire.dat4$dp)
+
+```
+Once again we get the same results as the previous two results. In fact for all three methods we get the same result the only difference being the readability of the code and its succinctness. 
+
+# Question 4
+
+## (i) weekend effect
+
+```{r weekend effect}
+weekendeffect <- aggregate(. ~ weekend, data = forestfire.dat[,c(1,2, 4:14)], FUN = mean)
+
+weekendeffect
+```
+Well, the mean is the sum of sum of all values divided by the total number which here would mean the sum of 1's for true and 0's for false divided by the number of 1's. By looking at the mean for fire.event the values are really close in range, which to me suggests a very tenuous relationship for there being a possible weekend effect. That and the mean value for fire.area being greater for a weekday.  
+
+## (ii) North-South gradient
+
+```{r nort-south gradient}
+forestfire.dat5<- forestfire.dat
+
+summary(forestfire.dat5$Y)
+
+forestfire.dat5$Y <- as.factor(forestfire.dat5$Y)
+forestfire.dat5$Y <- factor(forestfire.dat5$Y, levels = c(1:9), ordered = T)
+nsgradient <- aggregate(cbind(fire.event, fire.area) ~ Y, data=forestfire.dat5,FUN=mean)
+nsgradient
+```
+
+Here the results seems to suggest that the further along the Y spatial coordinate the greater the chance of a forest fire, although there are few observations for any Y coordinate greater than 6, on average it looks like slightly more than half the observations for coordinates between 3-6 are fire events.

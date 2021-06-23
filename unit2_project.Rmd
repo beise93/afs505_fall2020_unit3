@@ -1,0 +1,257 @@
+---
+title: "AFS505 Unit 2 Project"
+author: "Brian Eisenbarth"
+date: "11/8/2020"
+output:
+  word_document:
+    reference_docx: WordStyle-AFS505.docx
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T,  warning=F, results="hold")
+```
+
+```{r needed libraries, echo=F}
+# This code chunk simply makes sure that all the libraries used here are installed, it will not be shown in the report (notice echo = FALSE).
+
+packages <- c("ggplot2", "ggmap","RColorBrewer", "maps", "gridExtra")
+if ( length(missing_pkgs <- setdiff(packages, rownames(installed.packages()))) > 0) { 
+  message("Installing missing package(s): ", paste(missing_pkgs, collapse = ", "))
+  install.packages(missing_pkgs)
+}
+require(GGally)
+require(hexbin)
+require(ggplot2)
+require(ggmap)
+require(RColorBrewer)
+require(maps)
+require(nlme)
+require(gridExtra)
+require(viridis)
+require(tidyr)
+require(vcd)
+require(tidyr)
+require(reshape)
+```
+
+
+Loading in my data
+
+```{r my data}
+
+song.dat <- read.csv("song_by_year.csv")
+
+
+song.dat$key <- as.factor(song.dat$key)
+song.dat$mode <- as.factor(song.dat$mode)
+
+
+song.dat$key <- factor(song.dat$key, levels = c(0,1,2,3,4,5,6,7,8,9,10,11), ordered = T)
+song.dat$mode <- factor(song.dat$mode, levels = c (0,1), ordered = T)
+str(song.dat)
+head(song.dat)
+```
+
+
+
+
+
+```{r boxplots}
+plot01 <- ggplot(song.dat, aes(x=energy, y=popularity)) + 
+  geom_boxplot(aes(fill = key, notch = F)) + 
+  ggtitle("Song Energy vs Popularity distribution by key") + 
+  scale_fill_viridis(discrete = T) 
+print(plot01)
+
+plot1 <- ggplot(song.dat, aes(x=popularity, y=tempo)) + 
+  geom_boxplot(aes(fill=key, notch = F)) + 
+  ggtitle("Song tempo distribution by popularity") + 
+  ylab("tempo") + 
+  scale_color_brewer(type = 'div', palette = 'Paired')
+print(plot1)
+
+plot1violin <- ggplot(song.dat, aes(x=energy, y=popularity)) + 
+  geom_violin(aes(fill = key, notch = F)) + 
+  ggtitle("Song key distribution by popularity") + 
+  ylab("Popularity") + 
+  scale_color_brewer(type = 'div', palette = 'Paired')
+print(plot1violin)
+
+```
+
+There a few outliers for the distribution of energy vs popularity. Given the boxplots it seems like highly popular songs are written in key 1(C sharp), but have a relatively lower perceived energy. Furthermore, for these boxplots it also shows that most songs have an energy around 0.4 to 0.5. Looking at the boxplot distribution for tempo and popularity. Interestingly, most songs are written in a high tempo with hardly any songs with a tempo below 100. By considering the key songs are composed in we see that just because a song has a high tempo that does not guarantee a song's popularity. Most songs are written in C major, G major, and C sharp. 
+
+
+
+```{r scatterplots}
+
+plot2 <- ggplot(song.dat, aes(x=popularity, y=tempo)) +
+  geom_point(aes(color=key, shape=key)) +  scale_color_viridis(discrete = T) + 
+  geom_smooth(method=lm, se=FALSE, fullrange=TRUE) +
+  ggtitle("Popularity vs Tempo")
+print(plot2)
+
+plot2_2 <- ggplot(song.dat, aes(x=popularity, y=acousticness)) +
+  geom_point(aes(color=key, shape=key)) +  scale_color_viridis(discrete = T) + 
+  geom_smooth(method=lm, se=FALSE, fullrange=TRUE) +
+  ggtitle("Popularity vs Acousticness")
+print(plot2_2)
+
+plot2_3 <- ggplot(song.dat, aes(x=energy, y=tempo)) +
+  geom_point(aes(color=key, shape=key)) +  scale_color_viridis(discrete = T) + 
+  geom_smooth(method=lm, se=FALSE, fullrange=TRUE) +
+  ggtitle("Energy vs Tempo")
+print(plot2_3)
+
+
+plot3_1 <- ggplot(song.dat, aes(x=popularity, y=energy)) +
+  geom_jitter(aes(color=key, shape = key)) + geom_smooth(method=lm, se=FALSE, fullrange=TRUE) + 
+  scale_color_brewer(type = 'div', palette = 'Paired') +
+  ggtitle("Popularity vs Energy")
+print(plot3_1)
+
+plot3 <- ggplot(song.dat, aes(x=popularity, y=energy)) +
+  geom_jitter(aes(color=key, shape = key)) + geom_smooth(method=lm, se=FALSE, fullrange=TRUE) + 
+  scale_color_brewer(type = 'div', palette = 'Paired') +
+  facet_wrap(~key)+
+  ggtitle("Popularity vs Energy")
+print(plot3)
+```
+
+Both tempo and energy are positively correlated with popularity. Energy and tempo are also positively correlated. This relationship for energy and popularity also holds when we consider the key songs are played in. Acousticness is negatively correlated with popularity.
+```{r histograms}
+plot4 <- ggplot(song.dat, aes(x=popularity, fill=key)) +
+  geom_histogram(binwidth = 1) +    
+  facet_wrap(~key, nrow=2) + scale_fill_brewer(type = 'div', palette = 'Paired') +
+  ggtitle("Popularity distribution by Key")
+print(plot4)
+
+plot5 <- ggplot(song.dat, aes(x=popularity)) +
+  geom_histogram(binwidth=5.7, aes(fill=..count..)) + scale_fill_viridis(discrete = F) +
+  ggtitle("Popularity Distribution")
+  
+print(plot5)
+
+plot6 <- ggplot(song.dat, aes(x=popularity, color=key)) + 
+  geom_freqpoly(binwidth=10) + scale_color_brewer(type = 'div', palette = 'Paired') +
+  ggtitle("Popularity Distribution", subtitle = "Frequency Polygon")
+print(plot6)
+
+plot7 <- ggplot(song.dat, aes(x=popularity, after_stat(density), color=key)) + 
+  geom_freqpoly(binwidth=10) + scale_color_brewer(type = 'div', palette = 'Paired') +
+    ggtitle("Popularity Distribution", subtitle = "Frequency Polygon Density")
+
+print(plot7)
+```
+
+```{r histograms for acoustic characteristics}
+
+hist1 <- ggplot(song.dat, aes(energy)) + geom_histogram(aes(fill=..count..), binwidth = .05) + scale_fill_viridis(discrete = F)
+hist2 <- ggplot(song.dat, aes(acousticness)) + geom_histogram(aes(fill=..count..), binwidth = .07) + scale_fill_viridis(discrete = F)
+hist3 <- ggplot(song.dat, aes(danceability)) + geom_histogram(aes(fill=..count..), binwidth = .05) + scale_fill_viridis(discrete = F)
+hist4 <- ggplot(song.dat, aes(instrumentalness)) + geom_histogram(aes(fill=..count..), binwidth = .06) + scale_fill_viridis(discrete = F)
+hist5 <- ggplot(song.dat, aes(liveness)) + geom_histogram(aes(fill=..count..), binwidth = .018) + scale_fill_viridis(discrete = F)
+hist6 <- ggplot(song.dat, aes(valence)) + geom_histogram(aes(fill=..count..), binwidth = .024) + scale_fill_viridis(discrete = F)
+
+
+
+
+grid.arrange(hist1, hist2, hist3, hist4, hist5, hist6, ncol=2, newpage = T)
+```
+Energy and acousticness have a bi-modal distribution. Instrumentalness is skewed to the right. While, danceability, liveness, and valence are all somewhat normally distributed. Perhaps the most surprising results of this are the distributions for energy and acousticness give their stark contrasts.
+
+```{r kde plot}
+plot8 <- ggplot(song.dat, aes(popularity, ..density..)) + 
+  geom_histogram(aes(fill=..density..), binwidth = 5.7) + geom_density(color='midnightblue', size=1.2) + scale_fill_viridis(discrete = F) + 
+  geom_density(fill="plum2", alpha=0.5, size=.5) + xlab("Popularity") + annotate("text", x = 35, y = .052, label = "bi-modal distribution", size = 12/2.845, family = "serif", fontface= "bold") + 
+annotate('segment', x=35, xend = 4 , y= .05, yend = .03, color='plum2', size=1, arrow=arrow(length = unit(3, "mm"))) +
+annotate('segment', x=35, xend = 40 , y= .05, yend = .03, color='plum2', size=1, arrow=arrow(length = unit(3, "mm")))
+print(plot8)
+
+```
+The distribution for the Spotify song data given its popularity has a bi-modal distribution, showing that a great number of songs are unpopular relatively speaking.
+
+```{r hex}
+ggplot(song.dat, aes(popularity, energy)) +
+  geom_hex(bins=9) +
+  geom_smooth(method = "loses", formula = y~x, color= "violet") +
+  ggtitle("Song Popularity vs. Energy") 
+
+```
+
+With this plot we can see the distribution of songs given their energy and popularity. There is a higher concentration of unpopular songs with a low energy. Generally, low energy are unpopular compared to songs with a higher perceived energy although this positive relationship has decreasing returns with higher energy. 
+
+```{r correlation-pair plots}
+cor(song.dat[2:12], method = "pearson")
+
+my_pairs1 <- ggpairs(song.dat, 
+        columns = c(2:4,12),
+        title = "Song Data",
+        progress = F,
+        lower = list(continuous = wrap("smooth", alpha = 0.3, size=0.1)),
+        mapping = ggplot2::aes(color=key)
+        )
+
+my_pairs2 <- ggpairs(song.dat, 
+        columns = c(5:7,12),
+        title = "Song Data",
+        progress = F,
+        lower = list(continuous = wrap("smooth", alpha = 0.3, size=0.1)),
+        mapping= ggplot2::aes(color=key)
+        )
+my_pairs3<- ggpairs(song.dat, 
+        columns = c(8:10,12),
+        title = "Song Data",
+        progress = F,
+        lower = list(continuous = wrap("smooth", alpha = 0.3, size=0.1)),
+        mapping = ggplot2::aes(color=key)
+        )
+print(my_pairs1)
+print(my_pairs2)
+print(my_pairs3)
+
+```
+My interest in these graphs is focused on the popularity variable. From the pair plots we can see that popularity is strong negatively correlated with acousticness, instrunmentalness, liveness, and speechiness. It is strongly positively correlated with danceability, energy, loudness, and tempo. By looking at these same relationships by major keys we see that these relationships generally hold, except for a few cases. Popularity and Energy for songs in A major, for instance has a positive correlation of .150 compared to the .945 correlation for energy as a whole with popularity.
+```{r heatmap}
+ggplot(song.dat, aes(x=popularity, y=energy)) +
+  stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE) + scale_fill_viridis(option="plasma", discrete = F)
+
+```
+The raster plot/heat map shows the relationship that the more popular songs have a higher sense of perceived energy while unpopular songs have a stark contrast in energy. So, generally speaking we could say that the more popular a song is the higher perceived energy that song will have.
+
+```{r spaghetti plots}
+spaghettiplot1 <- ggplot(song.dat, aes(year, tempo, group=key, color=key)) +
+  geom_point() +
+  geom_line() + 
+  scale_color_viridis(discrete = T) +
+  xlab("Year") +
+  ylab("Tempo") +
+  ggtitle("Tempo by key for 1925-2020")
+
+spaghettiplot2 <- ggplot(song.dat, aes(year, tempo, group=key, color=key)) +
+  geom_point(aes(shape=key)) +
+  geom_line(stat='smooth', method='lm', color='magenta',  size=1, se=F, alpha=.5) + 
+    xlab("Year") +
+  ylab("Tempo") +
+  scale_color_viridis(discrete = T) + ggtitle("Tempo by key for 1925-2020", subtitle = "Trend-line Added")
+
+print(spaghettiplot1)
+print(spaghettiplot2)
+```
+
+Here it can be seen that that while the tempo of songs has mostly increased for all major keys.
+
+```{r trends}
+song.dat2 <- song.dat[,c(1:3,5:7,9,11)]
+
+
+
+song.dat3 <- pivot_longer(song.dat2, cols=c("acousticness", "danceability", "energy", "instrumentalness", "liveness", "speechiness", "valence"), names_to = "Characteristic", values_to = "Measure")
+
+ggplot(song.dat3, aes(x=year, y = Measure, color = Characteristic)) + geom_line(aes(linetype=Characteristic)) + scale_color_viridis( discrete = T) + ylab("Measure") + 
+  geom_smooth(method = "lm", se = F, show.legend = F)+ 
+  ggtitle("Acoustic Characteristics by Year ", subtitle = "With Trend Line") + 
+  xlab("Year")
+
+
+```
+From this plot we can see the overall trends for characteristics for songs over the past century has been a strong increase in energy, a steady decline in acousticness, while the other characteristics have remained relatively stable or have seen slight positive and negative decreases. It would be interesting to consider different genres of music to see how these general trends compare.
