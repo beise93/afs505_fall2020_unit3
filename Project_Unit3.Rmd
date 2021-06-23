@@ -1,0 +1,305 @@
+---
+title: "Unit 3 Project"
+author: "Brian Eisenbarth"
+date: "12/20/2020"
+output:
+  word_document:
+    reference_docx: WordStyle-AFS505.docx
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T,  warning=F, results="hold")
+```
+
+```{r packages}
+require(tidyverse)
+require(GGally)
+require(lubridate)
+```
+# 1 Assemble datatables for analysis
+
+```{r data}
+poverty_estimates <- read.csv("Project3_Data.csv")
+
+
+snap <- read.csv("SNAP.csv")
+
+wic <- read.csv("WIC.csv")
+colnames(wic)
+
+```
+
+
+```{r merging the data}
+
+my_table <- na.omit(left_join(poverty_estimates, wic, by = c("Year" = "Year", "State" = "State.Agency.or.Indian.Tribal.Organization")))
+colnames(my_table)
+my_table <- left_join(my_table, snap, by = c("Year" = "Year", "State" = "State"))
+
+my_table$Year <- as.Date(as.character(my_table$Year), format = "%Y")
+my_table$Year <- year(my_table$Year)
+summary(my_table)
+glimpse(my_table)
+```
+# 2 Examine Relationships
+
+```{r data visualization pair plots}
+
+my_table.cor <- round(cor(my_table[,3:14]), 4)
+
+ggcorr(my_table[,3:14])
+
+ggpairs(my_table[,3:5]) + theme(strip.text.x = element_text(size = 8), strip.text.y = element_text(size = 8)) 
+
+ggpairs(my_table[,6:8]) + theme(strip.text.x = element_text(size = 8), strip.text.y = element_text(size = 8)) 
+
+ggpairs(my_table[,9:14]) + theme(strip.text.x = element_text(size = 8), strip.text.y = element_text(size = 8)) 
+
+```
+
+
+```{r scatter plots}
+my_table %>% ggplot(aes(x=OverallPoverty, y = wicoverallavg)) + geom_jitter(aes(color = State), show.legend = F) + scale_x_continuous(labels = scales::comma) + scale_y_continuous(labels = scales::comma) + scale_color_viridis_d() + labs(title = "Poverty vs Overall WIC", x = "Overall Poverty Estimate",
+    y = "Overall WIC Participation") 
+
+my_table %>% ggplot(aes(x=OverallPoverty, y = wic_women)) + geom_jitter(aes(color = State), show.legend = F) + scale_x_continuous(labels = scales::comma) + scale_y_continuous(labels = scales::comma) + scale_color_viridis_d() + labs(title = "Poverty vs Overall WIC-Women", x = "Overall Poverty Estimate",
+    y = "Overall WIC Participation-Women") 
+
+my_table %>% ggplot(aes(x=OverallPoverty, y = wic_children)) + geom_jitter(aes(color = State), show.legend = F) + scale_x_continuous(labels = scales::comma) + scale_y_continuous(labels = scales::comma) + scale_color_viridis_d() + labs(title = "Poverty vs Overall WIC-Children", x = "Overall Poverty Estimate",
+    y = "Overall WIC Participation-Children") 
+
+
+my_table %>% ggplot(aes(x=OverallPoverty, y = SNAPTotal)) + geom_jitter(aes(color = State), show.legend = F) + scale_x_continuous(labels = scales::comma) + scale_y_continuous(labels = scales::comma)+ scale_color_viridis_d() + geom_smooth(method = "lm", se = F) + labs(title = "Poverty vs Overall SNAP ", x = "Overall Poverty Estimate",
+    y = "Overall SNAP") 
+
+
+```
+
+From the correlation matrix we see that almost all the variables are highly positively correlated with one another except for the percentage variables for poverty estimates both overall and for children ages 0-4. For a good predictor variable we should choose variables that are correlated with our dependent variable, given this I would say that the percentage metrics would make for poor predictions. Instead, I would say that we should choose the overall poverty metric to use in any regression analysis. However, we also have to be careful not to commit omitted variable bias since our variables are highly correlated with one another.  
+
+
+The scatter plots show the positive linear relationship the overall poverty estimate has with SNAP and WIC assistance both  overall and the sub groups. A higher poverty estimate is correlated with a higher level of people with SNAP and WIC assistance.
+
+```{r histograms}
+
+ggplot(data = my_table) + 
+  geom_histogram(aes(x = wicoverallavg, fill = ..count..), bins = 5) + scale_fill_viridis_c() + ggtitle("WIC Overall Distribution")
+
+ggplot(data = my_table) + 
+  geom_histogram(aes(x = wic_avg_cost, fill = ..count..), binwidth = 1.5) + scale_fill_viridis_c() + ggtitle("WIC Average Cost Distribution")
+
+ggplot(data = my_table) + 
+  geom_histogram(aes(x = Total.Cost, fill = ..count..), bins = 7) + scale_fill_viridis_c() +  scale_x_continuous(labels = scales::comma) + ggtitle("SNAP Total Cost Distribution")
+
+ggplot(data = my_table) + 
+  geom_histogram(aes(x = wicadmin_costs, fill = ..count..), show.legend = F, bins = 5.5) + scale_fill_viridis_c()+  scale_x_continuous(labels = scales::comma) + ggtitle("WIC Admin Costs Distribution")
+
+ggplot(data = my_table) + 
+  geom_histogram(aes(x = SNAPTotal, fill = ..count..), show.legend = F, bins = 7) + scale_fill_viridis_c()+  scale_x_continuous(labels = scales::comma) +ggtitle("Overall SNAP Distribution ")
+
+ggplot(data = my_table) + 
+  geom_histogram(aes(x = wic_women, fill = ..count..), show.legend = F, bins = 5) + scale_fill_viridis_c()+  scale_x_continuous(labels = scales::comma) + ggtitle("WIC-Women Distribution")
+
+ggplot(data = my_table) + 
+  geom_histogram(aes(x = wic_children, fill = ..count..), show.legend = F, bins = 5) + scale_fill_viridis_c()+  scale_x_continuous(labels = scales::comma) + ggtitle("WIC-Children Distribution")
+
+ggplot(data = my_table) + 
+  geom_histogram(aes(x = OverallPoverty, fill = ..count..), show.legend = F, bins = 10) + scale_fill_viridis_c()+  scale_x_continuous(labels = scales::comma)  + ggtitle("Overall Poverty Distribution")
+
+ggplot(data = my_table) + 
+  geom_histogram(aes(x = OverallPovertyPercent, fill = ..count..), show.legend = F, bins = 12) + scale_fill_viridis_c()  + ggtitle("Overal Poverty Distribution", subtitle = "by percentage")
+
+
+```
+
+From the histograms we can see that for a majority of the variables there is considerable skewness to the right, which is evidence of outliers. This is the case for overall WIC and SNAP participants, including WIC women and children. Unsurprisingly, the same pattern of distribution is seen for Total SNAP costs where the distribution is right-tailed. The same kind of distribution is seen for overall poverty estimates, where the majority of states seem to have people living at the poverty level below 2 million. Interestingly, the distribution for overall poverty percent is much more normally distributed where most states seem to have a poverty percentage around 15%. A similar distribution is seen for avg WIC costs where a majority of states seem to have avg WIC costs near 45.
+
+```{r boxplots}
+ggplot(my_table, aes(as.factor(Year), SNAPTotal)) +
+    geom_boxplot()  + scale_y_continuous(labels = scales::comma) +  theme(strip.text.x = element_text(size = 8)) + labs(title = "Overall SNAP Participation", x = "Year",
+    y = "Total Number of Persons") +
+    theme(strip.text.x = element_text(size = 6))
+ggplot(my_table, aes(as.factor(Year), SNAPTotal)) +
+    geom_boxplot(aes(group=State), varwidth = T)  + scale_y_continuous(labels = scales::comma) +  theme(strip.text.x = element_text(size = 8)) + labs(title = "Overall SNAP Participation", subtitle = "By State", x = "Year",
+    y = "Total Number of Persons") +
+    theme(strip.text.x = element_text(size = 6))
+ggplot(my_table, aes(as.factor(Year), OverallPoverty)) +
+    geom_boxplot()  + scale_y_continuous(labels = scales::comma) +  theme(strip.text.x = element_text(size = 8)) + labs(title = "Overall Poverty Estimates", x = "Year",
+    y = "Total Number of Persons") +
+    theme(strip.text.x = element_text(size = 6))
+ggplot(my_table, aes(as.factor(Year), wicoverallavg)) +
+    geom_boxplot()  + scale_y_continuous(labels = scales::comma) +  theme(strip.text.x = element_text(size = 8)) + labs(title = "WIC Avg # of Persons", x = "Year",
+    y = "Total Number of Persons") +
+    theme(strip.text.x = element_text(size = 6))
+ggplot(my_table, aes(as.factor(Year), wicoverallavg)) +
+    geom_boxplot(aes(group=State), varwidth = T)  + scale_y_continuous(labels = scales::comma) +  theme(strip.text.x = element_text(size = 8)) + labs(title = "WIC Avg # of Persons", subtitle = "By State", x = "Year",
+    y = "Total Number of Persons") +
+    theme(strip.text.x = element_text(size = 6))
+```
+
+With boxplots we can easily see that are outliers in the data for overall SNAP and Poverty. For SNAP   states have a median below 1 million, but there several outliers that are around 4 million. For poverty estimates we again see that most states have a distribution below 1 million, the outliers here are between 3  to 6 million. Most states have around 250,000 residens using WIC but again some outliers are three times or more number of residents. 
+
+```{r facet plots}
+ ggplot(my_table, aes(Year, OverallPoverty, group = State)) +
+    geom_line() + facet_wrap(~ State) + scale_y_continuous(labels = scales::comma) +  theme(strip.text.x = element_text(size = 8)) + ggtitle("Total Estimated Poverty", subtitle = "By State")
+ 
+ggplot(my_table, aes(Year, SNAPTotal, group = State)) +
+    geom_line() + facet_wrap(~ State) + scale_y_continuous(labels = scales::comma) +  theme(strip.text.x = element_text(size = 8)) + ggtitle("Total SNAP Participation", subtitle = "By State")
+
+ggplot(my_table, aes(Year, wicoverallavg, group = State)) +
+    geom_line() + facet_wrap(~ State) + scale_y_continuous(labels = scales::comma) +  theme(strip.text.x = element_text(size = 8)) + ggtitle("Total WIC Participation", subtitle = "By State")
+
+
+```
+
+The facet plots show how poverty rates have changed from 2013 to to 2016, for most states poverty estimates have remained relatively unchanged. We can see that SNAP and WIC for each state also has not changed all that much. These plots also show how much the outlier states like California, New York, Florida, and Texas differ from the other states in the sheer number of people living in poverty and the number of people getting SNAP and WIC assistance. 
+
+```{r poverty}
+top_states <- my_table %>%
+      filter(Year == 2013) %>%
+      arrange(desc(OverallPoverty)) %>%
+  slice(1:5) %>%
+      select(State)
+ 
+my_table$top_state <- factor(my_table$State, levels = c(top_states$State, "Other"))
+my_table$top_state[is.na(my_table$top_state)] <- "Other"
+
+ggplot(my_table) +
+  geom_line(aes(x=Year, y = OverallPoverty, group = State, color = top_state)) + scale_y_continuous(labels = scales::comma) +  scale_x_continuous("Year", breaks = 2013:2016 ) + ylab("Poverty Estimates") + ggtitle("Poverty Estimates 2013-2016", subtitle = "By State") + scale_color_viridis_d(option = "inferno")
+
+```
+California has the highest estiamated number of people living in poverty followed by Texas, Florida, New York, and Georgia. Interestingly, the poverty rate seems to be decreasing for California.
+
+```{r poverty kids}
+top_states <- my_table %>%
+      filter(Year == 2016) %>%
+      arrange(desc(PovertyPercentChildren)) %>%
+  slice(1:5) %>%
+      select(State)
+ 
+my_table$top_state <- factor(my_table$State, levels = c(top_states$State, "Other"))
+my_table$top_state[is.na(my_table$top_state)] <- "Other"
+
+ggplot(my_table) +
+  geom_line(aes(x=Year, y = PovertyPercentChildren, group = State, color = top_state)) +  scale_y_continuous(labels = function(x) paste0(x, "%")) + scale_x_continuous("Year", breaks = 2013:2016 ) + ylab("Poverty Estimates") + ggtitle("Poverty Estimates 2013-2016", subtitle = "By State Children 0-4") + scale_color_viridis_d(option = "inferno")
+
+
+
+
+```
+
+Interestingly, the top 5 states for overall poverty do not show up in the top 5 poverty rates for children, instead the top 5 states are Mississippi, New Mexico, Louisiana, Alabama, and Arkansas. I found these results surprising given how much the overall poverty rates are for California, New York, Florida etc.
+
+```{r more graphs}
+top_states <- my_table %>%
+      filter(Year == 2013) %>%
+      arrange(desc(Total.Cost)) %>%
+  slice(1:5) %>%
+      select(State)
+ 
+my_table$top_state <- factor(my_table$State, levels = c(top_states$State, "Other"))
+my_table$top_state[is.na(my_table$top_state)] <- "Other"
+
+ggplot(my_table) +
+  geom_line(aes(x=Year, y = Total.Cost, group = State, color = top_state)) + scale_y_continuous(labels = scales::comma) +  scale_x_continuous("Year", breaks = 2013:2016 ) + ylab("Total SNAP Cost") + ggtitle("SNAP Costs 2013-2016", subtitle = "By State") + scale_color_viridis_d(option = "inferno")
+
+```
+SNAP costs seem to reflect the trends in poverty estimates and SNAP participation quite closely. The same top five states feature in each except for Illinois and Georgia trading places for 5th place. The rates seem to be relatively unchanged.
+
+```{r SNAP}
+top_states <- my_table %>%
+      filter(Year == 2013) %>%
+      arrange(desc(SNAPTotal)) %>%
+  slice(1:5) %>%
+      select(State)
+ 
+my_table$top_state <- factor(my_table$State, levels = c(top_states$State, "Other"))
+my_table$top_state[is.na(my_table$top_state)] <- "Other"
+
+
+ggplot(my_table) +
+  geom_line(aes(x=Year, y = SNAPTotal, group = State, color = top_state)) + scale_y_continuous(labels = scales::comma) +  scale_x_continuous("Year", breaks = 2013:2016 ) + ylab("SNAP Participation") + ggtitle("SNAP Participation 2013-2016", subtitle = "Overall") + scale_color_viridis_d(option = "inferno")
+
+
+
+```
+While poverty rates seem to be declining in California it looks like there is a slight increase in the number of people getting SNAP assistance. 
+
+```{r WIC overall}
+top_states <- my_table %>%
+      filter(Year == 2015) %>%
+      arrange(desc(wicoverallavg)) %>%
+  slice(1:5) %>%
+      select(State)
+ 
+my_table$top_state <- factor(my_table$State, levels = c(top_states$State, "Other"))
+my_table$top_state[is.na(my_table$top_state)] <- "Other"
+
+
+ggplot(my_table) +
+  geom_line(aes(x=Year, y = wicoverallavg, group = State, color = top_state)) + scale_y_continuous(labels = scales::comma) +  scale_x_continuous("Year", breaks = 2013:2016 ) + ylab("WIC Participation") + ggtitle("WIC Overall Participation 2013-2016", subtitle = "Overall") + scale_color_viridis_d(option = "plasma")
+```
+
+
+
+
+Compared to SNAP less people are getting WIC assistance in California, while other states remain relatively unchanged.
+
+
+```{r WIC women}
+top_states <- my_table %>%
+      filter(Year == 2015) %>%
+      arrange(desc(wic_women)) %>%
+  slice(1:5) %>%
+      select(State)
+ 
+my_table$top_state <- factor(my_table$State, levels = c(top_states$State, "Other"))
+my_table$top_state[is.na(my_table$top_state)] <- "Other"
+
+
+ggplot(my_table) +
+  geom_line(aes(x=Year, y = wic_women, group = State, color = top_state)) + scale_y_continuous(labels = scales::comma) +  scale_x_continuous("Year", breaks = 2013:2016 ) + ylab("WIC Participation") + ggtitle("WIC-Women Participation 2013-2016", subtitle = "Overall") + scale_color_viridis_d(option = "inferno")
+
+
+
+
+```
+
+The amount of women using WIC follows the same overall trend for all people using WIC, California has seen a slight decline in the number of women getting WIC, other states have seen little change.
+
+```{r WIC children}
+top_states <- my_table %>%
+      filter(Year == 2015) %>%
+      arrange(desc(wic_children)) %>%
+  slice(1:5) %>%
+      select(State)
+ 
+my_table$top_state <- factor(my_table$State, levels = c(top_states$State, "Other"))
+my_table$top_state[is.na(my_table$top_state)] <- "Other"
+
+
+ggplot(my_table) +
+  geom_line(aes(x=Year, y = wic_children, group = State, color = top_state)) + scale_y_continuous(labels = scales::comma) +  scale_x_continuous("Year", breaks = 2013:2016 ) + ylab("WIC Participation") + ggtitle("WIC-Children Participation 2013-2016", subtitle = "Overall") + scale_color_viridis_d(option = "inferno")
+
+```
+
+The biggest change appears to be the amount of children getting WIC in California which has declined by almost 200,000 since 2013. Other states have not seen such change. 
+
+```{r lm}
+model1 <- lm(wicoverallavg ~ OverallPoverty, data = my_table)
+model2 <- lm(wicoverallavg ~ OverallPoverty + SNAPTotal, data = my_table)
+print(summary(model1))
+
+ggplot(lm(wicoverallavg ~ OverallPoverty, data = my_table)) + geom_point(aes(x=.fitted, y = .resid), shape = 1, position = "dodge") + xlab("Fitted Values") + ylab("Residuals") + scale_y_continuous(labels = scales::comma) + scale_x_continuous(labels = scales::comma)
+
+ggplot(lm(wicoverallavg ~ OverallPoverty + SNAPTotal, data = my_table)) + geom_point(aes(x=.fitted, y = .resid), shape = 1, position = "dodge") + xlab("Fitted Values") + ylab("Residuals") + scale_y_continuous(labels = scales::comma) + scale_x_continuous(labels = scales::comma)
+
+
+model3 <- lm(SNAPTotal ~ OverallPoverty, data = my_table)
+print(summary(model2))
+ggplot(lm(SNAPTotal ~ OverallPoverty , data = my_table)) + geom_point(aes(x=.fitted, y = .resid), shape = 1, position = "dodge") + xlab("Fitted Values") + ylab("Residuals") + scale_y_continuous(labels = scales::comma) + scale_x_continuous(labels = scales::comma)
+
+
+```
+
+
+Inspecting the residual plots for a simple linear regression shows evidence of heteroskedasticity in the error terms, this is more evident when there is only one independent variable in the regression. As such our estimates may not be trusted and perhaps generalized least squares should be used instead. The heterosekdasticity is more than likely due to states like California and Texas having such higher number of people at the poverty level and getting assistance from WIC and SNAP.
